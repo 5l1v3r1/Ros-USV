@@ -5,6 +5,8 @@ import re
 import subprocess
 
 class USB:
+
+    
     def find(id):
         device_re = re.compile(
             "Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$", re.I)

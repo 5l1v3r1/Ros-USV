@@ -11,13 +11,8 @@ class Encoder:
 
         ### TO-DO
         ###İleride buraya paket boyutuna göre filtreleme yazılacak
-        temp = "{" + self.msg + "}"
+        temp = '{' + self.msg + '}'
 
         return temp
 
-    def decode(self):
-
-        msg = self.msg.split("{")
-        msg1 = msg[1]
-        msg2 = msg.split("}")
-        return msg2[0]
+    
