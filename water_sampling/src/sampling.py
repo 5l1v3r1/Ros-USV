@@ -66,7 +66,6 @@ def checker_send(msg):
 
 
 def command(msg):
-
 #############
 #CMD will be
 # {start}
@@ -115,7 +114,7 @@ def send_message(cont):
 ########### INIT AND START ############
 #######################################
 
-rospy.init_node("waterSampler", anonymous=True)
+rospy.init_node("water", anonymous=True)
 
 rospy.Subscriber("/water/command", String, command)
 rospy.Subscriber("/monitor/check_req", String, checker_send)

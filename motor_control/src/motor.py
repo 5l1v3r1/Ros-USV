@@ -10,22 +10,22 @@ from usb_finder import USB
 from encoder import Encoder
 
 
-check_pub = rospy.Publisher("/monitor/check", String, queue_size=10)
+check_pub = rospy.Publisher('/monitor/check', String, queue_size=10)
 
-mon_pub = rospy.Publisher("/comm/send_msg", String, queue_size=10)
-mot_pub = rospy.Publisher("/motor/state", String, queue_size=10)
+mon_pub = rospy.Publisher('/comm/send_msg', String, queue_size=10)
+mot_pub = rospy.Publisher('/motor/state', String, queue_size=10)
 
 
-motor_ser = Serial("/dev/serial2",  9600)
+motor_ser = Serial('/dev/serial2',  9600)
 
 def check_usb():
          
-        dev = USB.find("Arduino")
+        dev = USB.find('Arduino')
         if dev is None:
-                rospy.loginfo("Fault with communicating " + " MOTOR CONTROL")
+                rospy.loginfo('Fault with communicating ' + ' MOTOR CONTROL')
         else:
                 msg = String()
-                msg.data = "--Started to communicate with Motor Control Unit--"
+                msg.data = '--Started to communicate with Motor Control Unit--'
                 mon_pub.publish(msg)
 
                 rate.sleep()
@@ -43,22 +43,22 @@ def motor_state_listener():
 
 
 def motor_command(msg):
-        raw = Encoder(msg).decode()
-        cmds = raw.split(",")
+        raw = msg
+        cmds = raw.split(',')
         ######
-        #Cmd will be {transmission,angle,revertorforward}
+        #Cmd will be {transmission,angle}
         #revert is 0
         #forward is 1
-        cmd = cmds[0] +","+ cmds[1] +","+ cmds[2] +"\n" 
+        cmd = cmds[0] +','+ cmds[1] +'\n' 
         motor_ser.write(cmd)
 
 
 def checker_send(msg):
-        if msg is "Request":
+        if msg is 'Request':
                 respon = String()
-                respon.data = "motor_control"
+                respon.data = 'motor_control'
                 check_pub.publish(respon)
-
+                
                 rate.sleep()
 
 
@@ -66,19 +66,19 @@ def checker_send(msg):
 ########### INIT AND START ############
 #######################################
 motorThrd = threading.Thread(target=motor_state_listener)
-rospy.init_node("motor_controller")
+rospy.init_node('motor_controller')
 
 available = check_usb()
 
 def stopper(msg):
-        raw = Encoder(msg).decode()
-        parts = raw.split(",")
+        raw = msg
+        parts = raw.split(',')
         for i in range(len(parts)):
-                if "motor_control" is parts[i]:
-                        motor_ser.write("stop\n")
+                if 'motor_control' is parts[i]:
+                        motor_ser.write('stop\n')
 
                         state = String()
-                        state.data = "Motor-Stopped"
+                        state.data = 'Motor-Stopped'
                         mot_pub.publish(state)
 
                         motorThrd._stop()
@@ -90,9 +90,9 @@ if motor_ser.is_open:
         motorThrd.start()
 
 
-rospy.Subscriber("/monitor/check_req", String, checker_send)
-rospy.Subscriber("/motor/cmd", String, motor_command)
-rospy.Subscriber("/stopper", String, stopper)
+rospy.Subscriber('/monitor/check_req', String, checker_send)
+rospy.Subscriber('/motor/cmd', String, motor_command)
+rospy.Subscriber('/stopper', String, stopper)
 
 rospy.spin()
 

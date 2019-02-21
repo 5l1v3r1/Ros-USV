@@ -25,12 +25,12 @@ def get_Xbee(port):
 
     while True:
         ser_mutex.acquire()
-        package = port.readline().decode()
+        package = port.readline()
         ser_mutex.release()
 
         if len(package) is not 0:
             content = package.split('/')
-            rospy.loginfo("-----XBEE---Received: " + content[0])
+            rospy.loginfo("-----XBEE---Received: " + content[1])
             received_message(content[0])
 
 
@@ -47,9 +47,7 @@ def send_message(msg):
 
 def received_message(cont):
     msg = String()
-
-    cont = cont.split("\n")
-    msg.data = cont[0]
+    msg.data = cont
     receive_pub.publish(msg)
 
 

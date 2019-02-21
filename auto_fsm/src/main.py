@@ -11,16 +11,16 @@ from gps_common.msg import GPSFix
 from gps_common.msg import GPSStatus
 from sensor_msgs.msg import NavSatFix
 
-mon_pub = rospy.Publisher("/comm/send_msg", String, queue_size=10)
-route_pub = rospy.Publisher("/automa/route", String, queue_size=10)
-water_pub = rospy.Publisher("/water/command", String, queue_size=10)
-check_pub = rospy.Publisher("/monitor/check", String, queue_size=10)
-stoper_pub = rospy.Publisher("/stoper", String, queue_size=10)
+mon_pub = rospy.Publisher('/comm/send_msg', String, queue_size=10)
+route_pub = rospy.Publisher('/automa/route', String, queue_size=10)
+water_pub = rospy.Publisher('/water/command', String, queue_size=10)
+check_pub = rospy.Publisher('/monitor/check', String, queue_size=10)
+stoper_pub = rospy.Publisher('/stoper', String, queue_size=10)
 
 
 
-GPS_FIX_PUB_TOPIC = "fix"
-GPS_EXT_FIX_PUB_TOPIC = "extended_fix"
+GPS_FIX_PUB_TOPIC = 'fix'
+GPS_EXT_FIX_PUB_TOPIC = 'extended_fix'
 
 lat_vals = []
 lon_vals = []
@@ -37,41 +37,52 @@ completed_tasks = []
 
 # if devices connected, go on
 def command_listener(cmd):
-        raw = Encoder(cmd).decode()
+        raw = cmd.data
         #Messages should be like {1,2,3,4,5,6,7}
         #first value will indicate the command type but will not be investigated here 
         #it should be handled at monitoring node
-        cmds = raw.split(",")
-        if cmds[1] is "Start":
+        cmds = raw.split(',')
+        if cmds[1] is 'Start':
                 taskThrd.start()
-        elif cmds[1] is "Stop":
+        elif cmds[1] is 'Stop':
                 taskThrd._stop()
                 stop()
 
 
 def start():
-        global progress
+        global progress,waypoints
         
 
         while progress is not len(tasks):
                 time.sleep(1)
-                rospy.loginfo("Waiting for task")
+                rospy.loginfo('Waiting for task')
 
-        if progress is not len(tasks):
-                while progress is not len(tasks):
-                        task = progress
+        if progress < len(tasks):
+                while progress is not len(waypoints):
+                        
                         if is_completed(progress):
-                                progress += 1
-                                task = tasks[progress]
 
-                                lat = float(task[1])
-                                lon = float(task[2])
-                                wat = float(task[3])
+                                if progress is not 0:
+                                        progress += 1
+
+                                waypoints = waypoints[progress]
+
+                                lat = float(waypoints[1])
+                                lon = float(waypoints[2])
+                                wat = bool(waypoints[3])
 
                                 task_handler(lat, lon, wat)
 
                         else:
                                 time.sleep(1)
+
+
+def stop_listener(cmd):
+
+        if cmd.data is 'NAV':
+                rospy.signal_shutdown('Quit')
+
+
                         
 #################################
 ### Monitor -> Autonom -> NAV ###
@@ -82,19 +93,35 @@ def task_handler(lat, lon, wat):
 
         route = String()
 
-        route.data = "{" + str(lat) + "," + str(lon) + "}"
+        route.data = '{' + str(lat) + ',' + str(lon) + '}'
         route_pub.publish(route)
 
-        if wat:
+        while is_completed(progress):
+                if wat:
+
+                        water = String()
+                        water.data = 'start'
+                        water_pub.publish(water)
+
+                        rospy.loginfo('Task Started')
+                else:
+
+                        water_stopper = String()
+                        water.data = 'stop'
+                        water_pub.publish(water_stopper)
+
+                        rospy.loginfo('Task Stopped')
+                        time.sleep(1)
+
+
                 
-        
 
 
                         
 def get_completed(msg):
-        global completed
+        global completed_tasks
         
-        raw = int(msg)
+        raw = int(msg.data)
         completed_tasks.append(raw)
 
 
@@ -112,7 +139,7 @@ def is_completed(taskNo):
 
 def stop():
         msg = String()
-        msg.data = "All"
+        msg.data = 'All'
         stoper_pub.publish(msg)
 
 
@@ -140,12 +167,31 @@ def distance(h_lat, h_lon, t_lat, t_lon):
         return dist
 
 
+
+
 def checker_send(msg):
-        if msg is "Request":
+        if msg.data is 'Request':
                 response = String()
-                response.data = "autonom"
+                response.data = 'autonom'
                 check_pub.publish(response)
                 rate.sleep()
+
+
+
+
+def route_listener(msg):
+        raw = msg.data
+
+        vals = raw.split(',')
+
+        val_lat = vals[0]
+        val_lon = vals[1]
+        val_wat = vals[2]
+
+        waypoints.append([val_lat, val_lon, val_wat])
+
+
+
 
 
 def gps_listener(loc):
@@ -160,9 +206,14 @@ def gps_listener(loc):
         cov_vals.append(position_co)
 
 
-rospy.Subscriber("/auto/cmdlistener", String, command_listener)
-rospy.Subscriber("/monitor/check_req", String, checker_send)
-rospy.Subscriber(GPS_FIX_PUB_TOPIC, NavSatFix, gps_listener)
+
+
+
+
+
+
+
+
 
 
 #########################################
@@ -180,33 +231,33 @@ rospy.Subscriber(GPS_FIX_PUB_TOPIC, NavSatFix, gps_listener)
 #               Commands                  #
 #               --------                  #
 # first index should include command type #
-# "0" is emergency stop                   #
-# "1" is start command                    #
-# "2" is direction indicator              #
-# "3" is navigation parameters            #
+# '0' is emergency stop                   #
+# '1' is start command                    #
+# '2' is direction indicator              #
+# '3' is navigation parameters            #
 #                                         #
 #            Start telemetry              #
-# {1,"Start"}                             #
+# {1,'Start'}                             #
 # This will start boat                    #
 # Before the start send navigation data   #
 #                                         #
 #         Navigation parameters           #
 #                                         #
-#         *{3,"add", lat, lon}            #
+#         *{3,'add', lat, lon}            #
 #                                         #
 #       -Direction parameters             #
-#         *{2,"auto", lat,lon, priority}  #
+#         *{2,'auto', lat,lon, priority}  #
 #          -Priority Levels               #
-#          * "0" : None                   #
-#          * "1" : first to proceed       #
-#          * "2" : after the current task #
-#          * "3" : wait for the program   #
+#          * '0' : None                   #
+#          * '1' : first to proceed       #
+#          * '2' : after the current task #
+#          * '3' : wait for the program   #
 #                                         #
 #            Stop COMMAND                 #
 #                                         #
 # For stopping system parts               #
-# {0, "part", "motor"}                    #
-# {0, "all"}                              #
+# {0, 'part', 'motor'}                    #
+# {0, 'all'}                              #
 ###########################################
 #                                       ###
 # ---------------                       ###
@@ -217,11 +268,15 @@ rospy.Subscriber(GPS_FIX_PUB_TOPIC, NavSatFix, gps_listener)
 ###########################################
 
 
+
+
+
 #######################################
 ########### INIT AND START ############
 #######################################
 
-rospy.init_node("autonom", anonymous=True)
+
+rospy.init_node('autonom', anonymous=True)
 
 
 ###################
@@ -230,6 +285,24 @@ rospy.init_node("autonom", anonymous=True)
 
 
 taskThrd = threading.Thread(target=start)
+
+
+
+###################
+#####  Nodes  #####
+###################
+
+
+
+
+
+rospy.Subscriber('/auto/cmdlistener', String, command_listener)
+rospy.Subscriber('/monitor/check_req', String, checker_send)
+rospy.Subscriber(GPS_FIX_PUB_TOPIC, NavSatFix, gps_listener)
+rospy.Subscriber('/auto/routeinfo', String, route_listener)
+rospy.Subscriber('/stopper', String, stop_listener)
+
+
 
 
 
