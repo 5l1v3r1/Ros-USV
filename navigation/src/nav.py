@@ -86,7 +86,7 @@ def callback_gps_fix(data):
 
         loc_vals.append([lat, lon])
 
-        pos_cov = data.position_covariance
+        pos_cov = data.p-osition_covariance
 
         ts_computer = time.time()
         ts_gps = data.header.stamp.secs
@@ -180,8 +180,6 @@ def nav_task_handler(msg):
         
 
 
-
-
 #def task_handler():
 #        if not tasks:
  #               while(not tasks):
@@ -211,10 +209,10 @@ def directRoute(msg):
 def distance_calculator(lat,lon):
         global current_lon, current_lat 
 
-        lat1 = math.radians(lat)
-        lon1 = math.radians(lon)
-        lat2 = math.radians(current_lon)
-        lon2 = math.radians(current_lat)
+        lat1 = math.radians(float(lat))
+        lon1 = math.radians(float(lon))
+        lat2 = math.radians(float(current_lon))
+        lon2 = math.radians(float(current_lat))
 
         dlon = lon2 - lon1
         dlat = lat2 - lat1
@@ -235,17 +233,25 @@ def getLocal(lat, lon):
         WORLD_EQUATORIAL_M = 6378137.0
 
         eccentricity = math.acos(WORLD_POLAR_M/WORLD_EQUATORIAL_M)
-        n_prime = 1/(math.sqrt(1 - math.pow(math.sin(math.radians(lat)),
+        n_prime = 1/(math.sqrt(1 - math.pow(math.sin(math.radians(float(lat))),
                                             2.0)*math.pow(math.sin(eccentricity), 2.0)))
         m = WORLD_EQUATORIAL_M * \
             math.pow(math.cos(eccentricity), 2.0) * math.pow(n_prime, 3.0)
         n = WORLD_EQUATORIAL_M * n_prime
 
+        if not waypoints:
+                home_lon = 45.0
+                home_lat = 44.0
+        else:
+                home_lon = waypoints[3][0]
+                home_lat = waypoints[3][1]
+ 
 
-        difflon = lon - waypoints[3][0]
-        difflat = lat - waypoints[3][1]
+        difflon = float(lon) - home_lon
+        difflat = float(lat) - home_lat
 
-        surfdistLon = math.pi /180.0 * math.cos(math.radians(lat)) * n
+
+        surfdistLon = math.pi /180.0 * math.cos(math.radians(float(lat))) * n
         surfdistLat = math.pi/180.00 * m
         
         x = difflon * surfdistLon
@@ -254,34 +260,28 @@ def getLocal(lat, lon):
         return x,y 
 
 
-def fake_subscriber(msg):
-        global current_lat,current_lon, target_lat, target_lon, current_speed
-
-        raw = msg.data.split(",") 
-        ## Command will be like described below 
-        current_lat, current_lon, current_speed, target_lat, target_lon = raw
-
-        route_thread.start()
 
 
 
 
 
-def route_thread(lat,lon):
+
+def route_thr(lat,lon):
         global current_speed, current_lon, current_lat, T, err_p, I 
 
         rospy.loginfo("Data is reached to route thread")
 
 
 
-        dist = distance_calculator(lat,lon)
+        dist = distance_calculator(float(lat),float(lon))
 
-        remain_time = dist // current_speed
-
+        remain_time = float(dist) // float(current_speed)
+        #rospy.loginfo("Remained time " + str(remain_time))
         cmd = String()
 
-        dist = distance_calculator(lat,lon)
-        heading = float(ahrs_vals[-1][2])
+        dist = distance_calculator(float(lat),float(lon))
+        #heading = float(ahrs_vals[-1][2])
+        heading = ahrs_vals[-1]
 
         ### Calculate route
 
@@ -292,7 +292,7 @@ def route_thread(lat,lon):
 
         coord_x, coord_y = getLocal(current_lat, current_lon)
 
-        target_x, target_y = getLocal(lat, lon)
+        target_x, target_y = getLocal(float(lat), float(lon))
 
         #target_x = (lat - home_x)*10
         #target_y = (lon - home_y)*10
@@ -313,7 +313,7 @@ def route_thread(lat,lon):
 
                 x_bias[2] = heading
         
-                head_sum = - x_bias[3] + math.atan2(coord_y - x_bias[1], coord_x - x_bias[0])
+                head_sum = - x_bias[2] + math.atan2(coord_y - x_bias[1], coord_x - x_bias[0])
 
                 desired_heading = math.atan2(math.sin(head_sum), math.cos(head_sum))
 
@@ -341,7 +341,7 @@ def route_thread(lat,lon):
                 if steer_cmd > 40 or err > math.radians(15):
                         steer_cmd = 10
                 else:
-                        if steer_cmd < -40 or err < math.radians(-40):
+                        if steer_cmd < -40 or err < math.radians(-15):
                                 steer_cmd = -40
 
 
@@ -349,17 +349,17 @@ def route_thread(lat,lon):
 
 
                 command = String()
-                command.data = '{' + str(3) + ',' + str(steer_cmd) +  '}'
+                command.data = str(3) + ',' + str(w) 
                 motor_pub.publish(command)
                 
-                rospy.loginfo('{' + str(3) + ',' + str(steer_cmd) + '}')
+                rospy.loginfo( str(3) + ',' + str(w) )
 
                 time.sleep(1)
 
 
                 
         stop = String()
-        stop.data = '{' + str(0) + ',' + str(0) +  '}'
+        stop.data = + str(0) + ',' + str(0) 
         rospy.loginfo("Stop data passed to route thread")
         motor_pub.publish(stop)
         
@@ -367,8 +367,17 @@ def route_thread(lat,lon):
 
         
 
+route_thread = threading.Thread(target=route_thr,args=(target_lat,target_lon))
 
 
+def fake_subscriber(msg):
+        global current_lat,current_lon, target_lat, target_lon, current_speed
+
+        raw = msg.data.split(",") 
+        ## Command will be like described below 
+        current_lat, current_lon, current_speed, target_lat, target_lon = raw
+
+        route_thr(target_lat,target_lon)
                 
 #################################
 ### Monitor -> Autonom -> NAV ###
@@ -377,14 +386,15 @@ def route_thread(lat,lon):
 
 
 
-def ahrs_listener(speed):
-        raw = speed
+def ahrs_listener(msg):
+        if msg is not None:
+                raw = msg.data
 
-        vals = raw.split(',')
+                packets = raw.split(',')
 
-        ahrs_vals.append(vals)
-
-        current_speed = vals[1]
+                ahrs_val = packets[-1]
+                
+                ahrs_vals.append(ahrs_val)
 
 
 
@@ -407,11 +417,10 @@ rospy.init_node('Navigation',anonymous=True)
 rospy.Subscriber(GPS_FIX_PUB_TOPIC, NavSatFix, callback_gps_fix)
 rospy.Subscriber('/monitor/check_req', String, checker_send)
 rospy.Subscriber('/automa/route', String, nav_task_handler)
-rospy.Subscriber('/ahrs/velocity', String, ahrs_listener)
 rospy.Subscriber('/nav/direct', String, directRoute)
 rospy.Subscriber('/stopper', String, stop_listener)
 rospy.Subscriber('/nav/fakeListener', String, fake_subscriber)
-
+rospy.Subscriber('/water/data', String, ahrs_listener)
 
 
 
@@ -428,7 +437,7 @@ rospy.spin()
 #Task handling is canceled here. Tasks are handled at automa node 
 
 #tasks_handling = threading.Thread(target=task_handler)
-route_thread = threading.Thread(target=route_thread,args=(target_lat,target_lon))
+
 distThread = threading.Thread(target=euclidean_dist)
 
 

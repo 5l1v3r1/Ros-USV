@@ -117,7 +117,7 @@ dist_vals = []
 mtr_state_vals = []
 gps_vals = []
 state_vals = []
-ahrs_vals = []
+ahrs_vals = [0,0,0]
 
 tasks = []
 current_target = ''
@@ -134,10 +134,12 @@ def water_sampler(msg):
 
                 packets = raw.split(',')
 
-                ahrs_val = packets[-3:-1]
-                packets = packets[0:-3]
+                ahrs_val = packets[-1]
+                packets = packets[0:-1]
                 
                 water_vals.append(packets)
+                ahrs_vals.append(ahrs_val)
+
 
 
 def euclidean_calc(msg):
@@ -186,11 +188,9 @@ def message_concat():
         
 
         msg = String()
-        raw = Encoder(
-                state_vals[-1] + ',' + dist_vals[-1] + ',' + gps_vals[-1] + ',' +  water_vals[-1] + ',' + mtr_state_vals[-1] ).encode()
-        msg.data = raw + '\n'
+        raw = state_vals[-1] + ',' + dist_vals[-1] + ',' + gps_vals[-1] + ',' +  water_vals[-1] + ',' + mtr_state_vals[-1] 
+        msg.data = raw 
         xbee_pub.publish(msg)
-
 
         rate.sleep()
 

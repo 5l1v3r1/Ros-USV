@@ -31,12 +31,12 @@ def get_Xbee(port):
         if len(package) is not 0:
             content = package.split('/')
             rospy.loginfo("-----XBEE---Received: " + content[1])
-            received_message(content[0])
+            received_message(content[1])
 
 
 def send_message(msg):
-    message = Encoder(msg)
-    encoded = message.encode() + "\n"
+    
+    encoded = "/" + msg.data + "/" + "\n"
 
     ser_mutex.acquire()
     ser.write(encoded)

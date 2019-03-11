@@ -15,8 +15,9 @@ check_pub = rospy.Publisher('/monitor/check', String, queue_size=10)
 mon_pub = rospy.Publisher('/comm/send_msg', String, queue_size=10)
 mot_pub = rospy.Publisher('/motor/state', String, queue_size=10)
 
+rate = rospy.Rate(10)
 
-motor_ser = Serial('/dev/serial2',  9600)
+motor_ser = Serial('/dev/ttyUSB1',  115200)
 
 def check_usb():
          
@@ -43,7 +44,7 @@ def motor_state_listener():
 
 
 def motor_command(msg):
-        raw = msg
+        raw = msg.data
         cmds = raw.split(',')
         ######
         #Cmd will be {transmission,angle}
@@ -68,11 +69,11 @@ def checker_send(msg):
 motorThrd = threading.Thread(target=motor_state_listener)
 rospy.init_node('motor_controller')
 
-available = check_usb()
+#available = check_usb()
 
 def stopper(msg):
         raw = msg
-        parts = raw.split(',')
+        parts = raw.data.split(',')
         for i in range(len(parts)):
                 if 'motor_control' is parts[i]:
                         motor_ser.write('stop\n')
@@ -97,6 +98,6 @@ rospy.Subscriber('/stopper', String, stopper)
 rospy.spin()
 
 
-rate = rospy.Rate(10)
+
 while not rospy.is_shutdown():
         rate.sleep()
