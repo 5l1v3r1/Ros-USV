@@ -18,34 +18,22 @@ class Control:
     def start(self):
         self.ser.write("1")
         self.startTime = time.time()
-        response = self.ser.readline()
-        if response is "OK\n":
-            return {True , time.time()}
-        else:
-            return {False, time.time()}
+        
         
     def stop(self):
         self.ser.write("2")
         self.stopTime = time.time()
-        response = self.ser.readline()
-        if response is "STOP\n":
-            return {True, time.time()}
-        else:
-            return {False, time.time()}
+        
+        
 
     def calibration(self):
-        ###Sequence ph
-        self.ser.write("")
-        time.sleep(1)
-        self.ser.write("")
+        ###Sequence ec
+        self.ser.write("enterec")
         time.sleep(5)
-        self.ser.write("Exit")
-        ###Sequence orp
-        self.ser.write("")
-        time.sleep(1)
-        self.ser.write("")
-        time.sleep(5)
-        self.ser.write("Exit")
+        self.ser.write("calec")
+        time.sleep(2)
+        self.ser.write("exitec")
+        
 
 
 

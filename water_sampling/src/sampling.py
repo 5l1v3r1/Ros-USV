@@ -39,16 +39,9 @@ def get_sensor(port):
             if content:
                 #Waiting for accurate data
                 rospy.loginfo("-----Water Sampling---Received: " + content)
-
-
                 old_values.append(package)
-
-
                 send_message(package)   
-            else:
-                rospy.loginfo("-----Water Sampling---Finished")
-                return
-        
+            
             
             
         ##1s delay for equailizing data rates
@@ -77,17 +70,12 @@ def command(msg):
         device.calibration()
         rospy.loginfo("-----Water Sampling---Calibrated")
         time.sleep(3)
-        readThrd.start()
 
         rospy.loginfo("Sampling started" + time.time())
         
     elif msg is "stop":
-        if readThrd.isAlive():
-                #If thread is not alive no mean to send stop sign to device
-                device.stop()
-
-                #Waiting for securing the serial port connection
-                time.sleep(1)
+        device.stop()
+        rospy.loginfo("Sampling stopped" + time.time())
 
 
 
@@ -123,6 +111,8 @@ rospy.Subscriber("/stopper", String, stopper)
 
 rospy.spin()
 
+
+readThrd.start()
 
 rate = rospy.Rate(10)
 while not rospy.is_shutdown():
